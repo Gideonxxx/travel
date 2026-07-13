@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#b45309">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>上海→塔公 318生活节 · 7.17-7.20</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.css"
+    onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'" />
+<style>
+:root {
+    --amber: #d97706;
+    --amber-dark: #b45309;
+    --amber-light: #fde68a;
+    --red-tibetan: #9b2335;
+    --gold: #c8922b;
+    --cream: #fef3c7;
+    --stone: #78716c;
+    --dark: #292524;
+    --bg: #fffbeb;
+    --card: #ffffff;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --radius: 14px;
+    --nav-h: 64px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--dark);
+    line-height: 1.6;
+    padding-bottom: calc(var(--nav-h) + 24px);
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+
+/* ---- Header Banner ---- */
+.banner {
+    position: relative;
+    height: 200px;
+    background: linear-gradient(135deg, #92400e 0%, #b45309 30%, #d97706 60%, #f59e0b 100%);
+    display: flex; align-items: flex-end; padding: 20px;
+    overflow: hidden;
+}
+.banner::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200'%3E%3Cpath d='M0 160 Q100 100 200 130 Q350 60 500 120 Q600 60 750 100 Q850 50 1000 90 Q1100 70 1200 110 L1200 200 L0 200Z' fill='rgba(255,255,255,0.08)'/%3E%3Cpath d='M0 180 Q150 140 300 150 Q450 100 600 140 Q750 120 900 130 Q1050 100 1200 140 L1200 200 L0 200Z' fill='rgba(255,255,255,0.06)'/%3E%3C/svg%3E") no-repeat bottom/cover;
+    opacity: 0.6;
+}
+.banner-content { position: relative; z-index: 1; color: #fff; }
+.banner-content h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.banner-content p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+.banner .badge {
+    display: inline-block; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 8px;
+}
+
+/* ---- Section Cards ---- */
+.section { margin: 16px; }
+.card {
+    background: var(--card); border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow);
+}
+.card-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { font-size: 20px; }
+
+/* ---- Map ---- */
+#map { height: 260px; border-radius: var(--radius); z-index: 0; }
+.leaflet-control-zoom { display: none; }
+
+/* ---- Timeline ---- */
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before {
+    content: ""; position: absolute; left: 11px; top: 8px; bottom: 8px;
+    width: 2px; background: linear-gradient(to bottom, var(--amber), var(--amber-light), #e5e7eb);
+}
+.tl-item { position: relative; margin-bottom: 20px; }
+.tl-item:last-child { margin-bottom: 0; }
+.tl-dot {
+    position: absolute; left: -21px; top: 4px; width: 14px; height: 14px;
+    border-radius: 50%; border: 3px solid var(--amber); background: #fff;
+    z-index: 1; transition: all 0.3s;
+}
+.tl-item.past .tl-dot { background: #d1d5db; border-color: #9ca3af; }
+.tl-item.current .tl-dot { background: var(--amber); border-color: var(--amber-dark); box-shadow: 0 0 0 4px rgba(217,119,6,0.2); }
+.tl-item.future .tl-dot { background: #fff; border-color: #e5e7eb; }
+.tl-date { font-size: 11px; color: var(--stone); margin-bottom: 2px; }
+.tl-title { font-size: 15px; font-weight: 600; }
+.tl-desc { font-size: 12px; color: var(--stone); margin-top: 2px; }
+.tl-item.past .tl-title, .tl-item.past .tl-desc { opacity: 0.5; }
+.tl-item.current .tl-title { color: var(--amber-dark); }
+
+/* ---- Reminder Panel ---- */
+.reminder-grid { display: flex; flex-direction: column; gap: 12px; }
+.reminder-card {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-radius: var(--radius); padding: 16px; border: 1px solid #fde68a;
+}
+.reminder-card.urgent { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-color: #fca5a5; }
+.reminder-label { font-size: 12px; color: var(--stone); }
+.reminder-dest { font-size: 17px; font-weight: 700; color: var(--amber-dark); }
+.reminder-card.urgent .reminder-dest { color: var(--red-tibetan); }
+.reminder-info { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+.reminder-stat { text-align: center; }
+.reminder-stat .val { font-size: 22px; font-weight: 700; color: var(--dark); }
+.reminder-stat .lbl { font-size: 11px; color: var(--stone); }
+.reminder-advice {
+    margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; text-align: center;
+    background: #fef3c7; color: var(--amber-dark);
+}
+.reminder-card.urgent .reminder-advice { background: #fee2e2; color: var(--red-tibetan); }
+
+/* ---- Bottom Nav ---- */
+.bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+    border-top: 1px solid #e5e7eb; display: flex; z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: none; background: none; font-size: 10px; color: var(--stone);
+    cursor: pointer; transition: color 0.2s; gap: 3px; -webkit-tap-highlight-color: transparent;
+}
+.nav-tab .nav-icon { font-size: 22px; }
+.nav-tab.active { color: var(--amber-dark); }
+
+/* ---- Panels ---- */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---- Share button ---- */
+.share-btn {
+    position: fixed; top: 16px; right: 16px; z-index: 1001;
+    width: 38px; height: 38px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.25); backdrop-filter: blur(10px);
+    color: #fff; font-size: 18px; cursor: pointer;
+}
+
+/* ---- GPS status ---- */
+.gps-status { font-size: 11px; color: var(--stone); display: flex; align-items: center; gap: 4px; }
+.gps-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.gps-dot.active { background: #22c55e; animation: pulse 2s infinite; }
+.gps-dot.inactive { background: #ef4444; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ---- Weather strip ---- */
+.weather-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; -webkit-overflow-scrolling: touch; }
+.weather-day { flex: 0 0 auto; text-align: center; min-width: 60px; padding: 10px 8px; background: #f8fafc; border-radius: 10px; }
+.weather-day .wd-date { font-size: 11px; color: var(--stone); }
+.weather-day .wd-icon { font-size: 28px; margin: 4px 0; }
+.weather-day .wd-temp { font-size: 12px; font-weight: 600; }
+.weather-day .wd-desc { font-size: 10px; color: var(--stone); }
+
+/* ---- Anim ---- */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.card { animation: fadeIn 0.4s ease; }
+</style>
+</head>
+<body>
+
+<!-- Banner -->
+<div class="banner">
+    <div class="banner-content">
+        <h1>🏔️ 318 生活节之旅</h1>
+        <p>上海 → 成都 → 塔公 · 7.17 — 7.20</p>
+        <span class="badge">🚗 川西自驾</span>
+    </div>
+</div>
+<button class="share-btn" onclick="doShare()" title="分享">📤</button>
+
+<!-- Panels -->
+<div class="section panel active" id="panel-timeline">
+    <div class="card">
+        <div class="card-title"><span class="icon">📋</span>行程总览</div>
+        <div class="timeline" id="timeline"></div>
+    </div>
+</div>
+
+<div class="section panel" id="panel-map">
+    <div class="card">
+        <div class="card-title"><span class="icon">🗺️</span>路线地图</div>
+        <div id="map"></div>
+        <div class="gps-status" style="margin-top:10px" id="gps-status">
+            <span class="gps-dot inactive"></span> 定位未开启
+        </div>
+    </div>
+</div>
+
+<div class="section panel" id="panel-reminder">
+    <div class="card">
+        <div class="card-title"><span class="icon">⏰</span>出发提醒</div>
+        <div class="reminder-grid" id="reminders"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+        <div class="card-title"><span class="icon">🌤️</span>沿途天气</div>
+        <div class="weather-strip" id="weather"></div>
+    </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+    <button class="nav-tab active" data-panel="timeline">
+        <span class="nav-icon">📋</span>行程
+    </button>
+    <button class="nav-tab" data-panel="map">
+        <span class="nav-icon">🗺️</span>地图
+    </button>
+    <button class="nav-tab" data-panel="reminder">
+        <span class="nav-icon">⏰</span>提醒
+    </button>
+</nav>
+
+<script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js"
+    onerror="var s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';document.head.appendChild(s)"></script>
+<script>
+// ============ ITINERARY DATA ============
+const ITINERARY = [
+    {
+        date: "7.17 上午", title: "✈️ 上海出发",
+        desc: "浦东机场出发，飞往成都",
+        coords: [31.1443, 121.8083], type: "flight",
+        eventTime: "2026-07-17T08:00:00+08:00"
+    },
+    {
+        date: "7.17 下午", title: "🚗 抵达成都 · 东站取车",
+        desc: "抵达成都，成都东站取车，夜宿成都",
+        coords: [30.6312, 104.1388], type: "car",
+        eventTime: "2026-07-17T16:00:00+08:00"
+    },
+    {
+        date: "7.18 上午", title: "🏔️ 出发前往塔公镇",
+        desc: "成都出发 → 雅康高速 → G318 → 康定 → 折多山 → 塔公（约360km / 6h）",
+        coords: [30.6312, 104.1388], type: "drive",
+        eventTime: "2026-07-18T08:00:00+08:00"
+    },
+    {
+        date: "7.18 下午", title: "🏨 抵达塔公 · 云端牧歌酒店",
+        desc: "入住塔公云端牧歌酒店，休整",
+        coords: [30.328, 101.518], type: "checkin",
+        eventTime: "2026-07-18T15:00:00+08:00"
+    },
+    {
+        date: "7.18-19", title: "🎉 318 生活节",
+        desc: "塔公镇周边，音乐/露营/美食/星空，尽享高原草原盛宴",
+        coords: [30.32, 101.52], type: "festival",
+        eventTime: "2026-07-18T16:00:00+08:00"
+    },
+    {
+        date: "7.20 上午", title: "🚗 返程 · 塔公 → 成都",
+        desc: "塔公镇出发，经折多山、康定，沿雅康高速返回成都（约360km / 6h）",
+        coords: [30.328, 101.518], type: "drive",
+        eventTime: "2026-07-20T08:00:00+08:00"
+    },
+    {
+        date: "7.20 下午/晚", title: "✈️ 成都 → 上海",
+        desc: "抵达成都后还车，飞回上海，旅程结束",
+        coords: [30.5785, 103.947], type: "flight",
+        eventTime: "2026-07-20T18:00:00+08:00"
+    }
+];
+
+// Drive segments (origin → dest for reminder system)
+const DRIVE_SEGMENTS = [
+    { from: "当前位置", to: "成都东站", coords: [30.6312, 104.1388], time: "2026-07-17T16:00:00+08:00", factor: 1.2, speed: 80 },
+    { from: "成都", to: "塔公云端牧歌酒店", coords: [30.328, 101.518], time: "2026-07-18T15:00:00+08:00", factor: 1.5, speed: 55 },
+    { from: "塔公镇", to: "成都双流机场", coords: [30.5785, 103.947], time: "2026-07-20T18:00:00+08:00", factor: 1.5, speed: 55 },
+];
+
+// ============ HAVERSINE ============
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function estimateDrive(distStraight, roadFactor, avgSpeed) {
+    const actualDist = distStraight * roadFactor;
+    const hours = actualDist / avgSpeed;
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return { dist: Math.round(actualDist), hours: h, minutes: m, totalHours: hours };
+}
+
+// ============ TIMELINE RENDER ============
+function renderTimeline() {
+    const now = new Date();
+    const tl = document.getElementById("timeline");
+    let currentFound = false;
+
+    tl.innerHTML = ITINERARY.map((item, i) => {
+        const evt = new Date(item.eventTime);
+        const isPast = now > evt;
+        const isCurrent = !currentFound && !isPast && (i === 0 || new Date(ITINERARY[i-1].eventTime) < now);
+        if (isCurrent) currentFound = true;
+        const cls = isCurrent ? "current" : isPast ? "past" : "future";
+        // Edge case: if all past, last is current; if all future, first is current
+        return `<div class="tl-item ${cls}">
+            <div class="tl-dot"></div>
+            <div class="tl-date">${item.date}</div>
+            <div class="tl-title">${item.title}</div>
+            <div class="tl-desc">${item.desc}</div>
+        </div>`;
+    }).join("");
+
+    // Fix: if now is before all events, mark first as current
+    if (!currentFound && ITINERARY.length > 0) {
+        const first = tl.querySelector(".tl-item");
+        if (first) first.className = "tl-item current";
+    }
+}
+
+// ============ MAP ============
+let map, userMarker, routeLine;
+function initMap() {
+    map = L.map("map", { zoomControl: false, attributionControl: false }).setView([31.5, 110], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+
+    const waypoints = [
+        { coords: [31.1443, 121.8083], label: "上海浦东", icon: "✈️" },
+        { coords: [30.6312, 104.1388], label: "成都东站", icon: "🚗" },
+        { coords: [30.328, 101.518], label: "塔公云端牧歌酒店", icon: "🏨" },
+        { coords: [30.32, 101.52], label: "318生活节", icon: "🎉" },
+        { coords: [30.5785, 103.947], label: "成都双流机场", icon: "✈️" },
+    ];
+
+    // Custom icon
+    const iconFor = (emoji) => L.divIcon({
+        html: `<div style="font-size:24px;text-align:center;line-height:36px">${emoji}</div>`,
+        iconSize: [36, 36], iconAnchor: [18, 18], className: ""
+    });
+
+    waypoints.forEach(w => {
+        L.marker(w.coords, { icon: iconFor(w.icon) })
+            .addTo(map).bindPopup(`<b>${w.label}</b>`);
+    });
+
+    // Route polyline
+    const route = waypoints.map(w => w.coords);
+    routeLine = L.polyline(route, { color: "#d97706", weight: 3, opacity: 0.6, dashArray: "8 6" }).addTo(map);
+
+    // Fit all markers
+    const bounds = L.latLngBounds(waypoints.map(w => w.coords));
+    map.fitBounds(bounds.pad(0.15));
+
+    // User marker (will be positioned on GPS)
+    userMarker = L.circleMarker([0,0], {
+        radius: 0, color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.8, weight: 2
+    }).addTo(map);
+}
+
+// ============ GPS & REMINDERS ============
+let currentPos = null;
+let gpsWatchId = null;
+
+function updateGPSStatus(active) {
+    const el = document.getElementById("gps-status");
+    el.innerHTML = active
+        ? '<span class="gps-dot active"></span> 定位已开启 · 每30秒更新'
+        : '<span class="gps-dot inactive"></span> 定位未开启 · 点击地图授权';
+}
+
+function getNextSegment() {
+    const now = new Date();
+    for (const seg of DRIVE_SEGMENTS) {
+        if (now < new Date(seg.time)) return seg;
+    }
+    return null; // All segments passed
+}
+
+function renderReminders() {
+    const container = document.getElementById("reminders");
+    const segment = getNextSegment();
+
+    if (!segment) {
+        container.innerHTML = `<div class="reminder-card" style="text-align:center;color:var(--stone);padding:24px">
+            🎉 行程已全部完成！</div>`;
+        return;
+    }
+
+    const now = new Date();
+    const evtTime = new Date(segment.time);
+    let html = "";
+
+    if (currentPos) {
+        const dist = haversineKm(currentPos.lat, currentPos.lng, segment.coords[0], segment.coords[1]);
+        const est = estimateDrive(dist, segment.factor, segment.speed);
+        const eta = new Date(now.getTime() + est.totalHours * 3600000);
+        const deadline = new Date(evtTime.getTime() - 30 * 60000); // 30 min buffer
+        const isUrgent = eta > deadline || now > evtTime;
+        const isPast = now > evtTime;
+
+        let advice;
+        if (isPast) {
+            advice = "⚠️ 已超过计划时间！请尽快出发";
+        } else if (isUrgent) {
+            const sugDepart = new Date(evtTime.getTime() - est.totalHours * 3600000 - 30*60000);
+            advice = `⚠️ 建议立即出发！计划 ${evtTime.getHours()}:${String(evtTime.getMinutes()).padStart(2,"0")} 前到达`;
+        } else {
+            const latestDepart = new Date(evtTime.getTime() - est.totalHours * 3600000);
+            advice = `建议 ${latestDepart.getHours()}:${String(latestDepart.getMinutes()).padStart(2,"0")} 前出发，从容不赶路`;
+        }
+
+        html += `<div class="reminder-card${isUrgent||isPast?' urgent':''}">
+            <div class="reminder-label">${segment.from} →</div>
+            <div class="reminder-dest">${segment.to}</div>
+            <div class="reminder-info">
+                <div class="reminder-stat">
+                    <div class="val">${est.dist}</div>
+                    <div class="lbl">估算距离 (km)</div>
+                </div>
+                <div class="reminder-stat">
+                    <div class="val">${est.hours}h ${est.minutes}m</div>
+                    <div class="lbl">预计驾车时间</div>
+                </div>
+                <div class="reminder-stat">
+                    <div class="val">${evtTime.getMonth()+1}/${evtTime.getDate()} ${String(evtTime.getHours()).padStart(2,"0")}:${String(evtTime.getMinutes()).padStart(2,"0")}</div>
+                    <div class="lbl">计划到达时间</div>
+                </div>
+            </div>
+            <div class="reminder-advice">${advice}</div>
+        </div>`;
+    } else {
+        // No GPS yet - show static info for each segment
+        html = DRIVE_SEGMENTS.map(seg => {
+            const evt = new Date(seg.time);
+            const isFuture = now < evt;
+            return `<div class="reminder-card${isFuture?'':' urgent'}" style="opacity:${isFuture?1:0.5}">
+                <div class="reminder-label">${seg.from} →</div>
+                <div class="reminder-dest">${seg.to}</div>
+                <div class="reminder-info">
+                    <div class="reminder-stat">
+                        <div class="val">${evt.getMonth()+1}/${evt.getDate()} ${String(evt.getHours()).padStart(2,"0")}:${String(evt.getMinutes()).padStart(2,"0")}</div>
+                        <div class="lbl">计划时间</div>
+                    </div>
+                </div>
+                <div class="reminder-advice">
+                    ${isFuture ? '📍 开启定位获取实时建议' : '✅ 已过'}
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    container.innerHTML = html;
+}
+
+function startGPS() {
+    if (!navigator.geolocation) {
+        updateGPSStatus(false);
+        return;
+    }
+
+    gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            const moved = !currentPos || haversineKm(currentPos.lat, currentPos.lng, newPos.lat, newPos.lng) > 0.01;
+            if (moved) {
+                currentPos = newPos;
+                updateGPSStatus(true);
+                updateUserMarker();
+                renderReminders();
+            }
+        },
+        (err) => {
+            console.warn("GPS error:", err.message);
+            updateGPSStatus(false);
+        },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+    );
+}
+
+function updateUserMarker() {
+    if (!map || !userMarker || !currentPos) return;
+    userMarker.setLatLng([currentPos.lat, currentPos.lng]);
+    userMarker.setRadius(8);
+    userMarker.setStyle({ fillColor: "#3b82f6", color: "#fff", fillOpacity: 0.9, weight: 3 });
+    // Keep route line visible
+    if (routeLine) routeLine.bringToFront();
+    userMarker.bringToFront();
+}
+
+// ============ WEATHER ============
+function renderWeather() {
+    const days = [
+        { date: "7.17", icon: "🌤️", hi: 32, lo: 24, desc: "多云" },      // Chengdu summer
+        { date: "7.18", icon: "⛅", hi: 30, lo: 22, desc: "多云转晴" },
+        { date: "7.19", icon: "☀️", hi: 22, lo: 8, desc: "高原晴" },      // Tagong ~3700m
+        { date: "7.20", icon: "🌤️", hi: 23, lo: 9, desc: "晴转多云" },
+    ];
+    document.getElementById("weather").innerHTML = days.map(d => `
+        <div class="weather-day">
+            <div class="wd-date">${d.date}</div>
+            <div class="wd-icon">${d.icon}</div>
+            <div class="wd-temp">${d.hi}° / ${d.lo}°</div>
+            <div class="wd-desc">${d.desc}</div>
+        </div>
+    `).join("");
+}
+
+// ============ SHARE ============
+function doShare() {
+    const data = {
+        title: "上海→塔公 318生活节 · 7.17-7.20",
+        text: "上海→成都→塔公，川西自驾，318生活节之旅！",
+        url: window.location.href
+    };
+    if (navigator.share) {
+        navigator.share(data).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(data.url).then(() => alert("链接已复制，可以粘贴分享给朋友！"));
+    }
+}
+
+// ============ TAB NAVIGATION ============
+document.querySelectorAll(".nav-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("panel-" + btn.dataset.panel).classList.add("active");
+        // Invalidate map size when switching to map tab
+        if (btn.dataset.panel === "map" && map) {
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+        if (btn.dataset.panel === "reminder") {
+            renderReminders();
+        }
+    });
+});
+
+// ============ INIT ============
+function init() {
+    renderTimeline();
+    renderWeather();
+    renderReminders();
+    initMap();
+    startGPS();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
